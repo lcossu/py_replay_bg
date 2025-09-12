@@ -9,7 +9,6 @@ from py_replay_bg.py_replay_bg import ReplayBG
 from py_replay_bg.visualizer import Visualizer
 from py_replay_bg.analyzer import Analyzer
 
-
 if __name__ == '__main__':
     freeze_support()
 
@@ -19,7 +18,7 @@ if __name__ == '__main__':
 
     # Set other parameters for twinning
     blueprint = 'multi-meal'
-    save_folder = os.path.join(os.path.abspath(''),'..','..','..')
+    save_folder = os.path.join(os.path.abspath(''), '..', '..', '..')
     parallelize = True
 
     # load patient_info
@@ -39,15 +38,14 @@ if __name__ == '__main__':
     rbg = ReplayBG(blueprint=blueprint, save_folder=save_folder,
                    yts=5, exercise=False,
                    seed=1,
-                   verbose=verbose, plot_mode=plot_mode)
+                   verbose=verbose, plot_mode=plot_mode, interval=True)
 
     # Set interval to twin
     start_day = 1
     end_day = 2
 
     # Twin the interval
-    for day in range(start_day, end_day+1):
-
+    for day in range(start_day, end_day + 1):
         # Step 1: Load data and set save_name
         data = load_test_data(day=day)
         save_name = 'data_day_' + str(day) + '_interval'
@@ -58,20 +56,17 @@ if __name__ == '__main__':
         rbg.twin(data=data, bw=bw, save_name=save_name,
                  twinning_method='map',
                  parallelize=parallelize,
-                 x0=x0, u2ss=u2ss, previous_data_name=previous_data_name)
+                 u2ss=u2ss, previous_data_name=previous_data_name)
 
         # Replay the twin with the same input data
         replay_results = rbg.replay(data=data, bw=bw, save_name=save_name,
                                     twinning_method='map',
                                     save_workspace=True,
-                                    x0=x0, previous_data_name=previous_data_name,
+                                    previous_data_name=previous_data_name,
                                     save_suffix='_twin_map')
         # Append results
         replay_results_interval.append(replay_results)
         data_interval.append(data)
-
-        # Set initial conditions for next day equal to the "ending conditions" of the current day
-        x0 = replay_results['x_end']['realizations'][0].tolist()
 
         # Set previous_data_name
         previous_data_name = save_name

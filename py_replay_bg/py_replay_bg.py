@@ -56,7 +56,7 @@ class ReplayBG:
     def __init__(self, save_folder: str, blueprint: str = 'single_meal',
                  yts: int = 5, exercise: bool = False,
                  seed: int = 1,
-                 plot_mode: bool = True, verbose: bool = True
+                 plot_mode: bool = True, verbose: bool = True, interval: bool = False,
                  ):
         """
         Constructs all the necessary attributes for the ReplayBG object.
@@ -80,7 +80,8 @@ class ReplayBG:
             A boolean that specifies whether to show the plot of the results or not.
         verbose : boolean, optional, default : True
             A boolean that specifies the verbosity of ReplayBG.
-
+        interval : boolean, optional, default : False
+            A boolean that specifies whether using interval mode or not.
         Returns
         -------
         None
@@ -112,13 +113,14 @@ class ReplayBG:
             seed=seed,
             plot_mode=plot_mode,
             verbose=verbose,
+            interval=interval,
         ).validate()
 
         # Initialize the environment parameters
         self.environment = Environment(blueprint=blueprint, save_folder=save_folder,
                                        yts=yts, exercise=exercise,
                                        seed=seed,
-                                       plot_mode=plot_mode, verbose=verbose)
+                                       plot_mode=plot_mode, verbose=verbose, interval=interval)
 
     def twin(self, data: pd.DataFrame, bw: float, save_name: str,
              twinning_method: str = 'mcmc',
@@ -204,6 +206,13 @@ class ReplayBG:
         if self.environment.verbose:
             print('Creating the digital twin using ' + twinning_method.upper())
 
+        # if interval twinning and x0 is None, load x_end from previous twinning to be used as initial condition
+        if self.environment.interval and x0 is None and previous_data_name is not None:
+            with open(os.path.join(self.environment.replay_bg_path, 'results', twinning_method,
+                                   twinning_method + '_' + previous_data_name + '.pkl'), 'rb') as file:
+                twinning_results = pickle.load(file)
+                x0 = twinning_results['x_end']
+
         # If we are twinning, override initial conditions of glucose if they are not None. This allows to avoid
         # "jumps" of glucose values during twinning.
         if x0 is not None:
@@ -272,6 +281,22 @@ class ReplayBG:
                      save_name=save_name,
                      environment=self.environment,
                      start_guess=start_guess)
+
+        if self.environment.interval:
+            # Run replay to save x_end
+            replay_results = self.replay(data=data, bw=bw, save_name=save_name, twinning_method=twinning_method, x0=x0,
+                                         previous_data_name=previous_data_name, )
+            x_end = replay_results['x_end']['realizations'][0].tolist()
+            saved_file = os.path.join(self.environment.replay_bg_path, 'results', twinning_method,
+                                      f'{twinning_method}_' + save_name + '.pkl')
+
+            with open(saved_file, 'rb') as file:
+                pkl = pickle.load(file)
+                pkl['x_end'] = x_end
+            with open(saved_file, 'wb') as file:
+                pickle.dump(pkl, file)
+            if self.environment.verbose:
+                print('Saved x_end in ' + saved_file)
 
     def replay(self,
                data: pd.DataFrame,
@@ -459,6 +484,13 @@ class ReplayBG:
             twinning_results = pickle.load(file)
         draws = twinning_results['draws']
         u2ss = twinning_results['u2ss']
+
+        # if interval twinning and x0 is None, load x_end from previous twinning to be used as initial condition
+        if self.environment.interval and x0 is None and previous_data_name is not None:
+            with open(os.path.join(self.environment.replay_bg_path, 'results', twinning_method,
+                                   twinning_method + '_' + previous_data_name + '.pkl'), 'rb') as file:
+                twinning_results = pickle.load(file)
+                x0 = twinning_results['x_end']
 
         if self.environment.blueprint == 'single-meal':
             model = T1DModelSingleMeal(data=data, bw=bw, u2ss=u2ss, x0=x0,

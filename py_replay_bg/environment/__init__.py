@@ -39,7 +39,8 @@ class Environment:
                  exercise: bool = False,
                  seed: int = 1,
                  plot_mode: bool = True,
-                 verbose: bool = True
+                 verbose: bool = True,
+                 interval: bool = False,
                  ):
         """
         Constructs all the necessary attributes for the Environment object.
@@ -66,6 +67,9 @@ class Environment:
             A boolean that specifies whether to show the plot of the results or not.
         verbose : boolean, optional, default : True
             A boolean that specifies the verbosity of ReplayBG.
+
+        intervals : boolean, optional, default : False
+            A boolean that specifies whether to use intervals or not.
         """
 
         # Set the save name and folder
@@ -97,3 +101,6 @@ class Environment:
         # Set plot mode and verbosity
         self.plot_mode = plot_mode
         self.verbose = verbose
+
+        # Set interval mode
+        self.interval = interval

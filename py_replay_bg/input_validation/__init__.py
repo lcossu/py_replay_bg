@@ -584,6 +584,19 @@ class VerboseValidator:
             raise Exception("'verbose' input must be a boolean.'")
 
 
+class IntervalValidator:
+    """
+    Class for validating the 'interval' input parameter of ReplayBG.
+    """
+
+    def __init__(self, interval):
+        self.interval = interval
+
+    def validate(self):
+        if not isinstance(self.interval, bool):
+            raise Exception("'interval' input must be a boolean.'")
+
+
 class X0Validator:
     """
     Class for validating the 'x0' input parameter of ReplayBG.

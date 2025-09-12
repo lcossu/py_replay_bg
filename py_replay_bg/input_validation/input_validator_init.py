@@ -39,6 +39,7 @@ class InputValidatorInit:
                  seed: int,
                  plot_mode: bool,
                  verbose: bool,
+                 interval: bool,
                  ):
         self.save_folder = save_folder
         self.blueprint = blueprint
@@ -47,6 +48,7 @@ class InputValidatorInit:
         self.seed = seed
         self.plot_mode = plot_mode
         self.verbose = verbose
+        self.interval = interval
 
     def validate(self):
         """
@@ -73,3 +75,6 @@ class InputValidatorInit:
 
         # Validate the 'verbose' input
         VerboseValidator(verbose=self.verbose).validate()
+
+        # Validate the 'interval' input
+        IntervalValidator(interval=self.interval).validate()
