@@ -150,8 +150,8 @@ class Replayer:
                 A dictionary which contains the hypotreatments simulated via ReplayBG.
             meal_announcement: dict
                 A dictionary which contains the meal announcements simulated via ReplayBG.
-            vo2: dict
-                A dictionary which contains the vo2 simulated via ReplayBG.
+            hr: dict
+                A dictionary which contains the hr simulated via ReplayBG.
             sensors: dict
                 A dictionary which contains the sensors used during the replayed scenario.
             rbg_data: ReplayBGData
@@ -205,8 +205,8 @@ class Replayer:
         meal_announcement = dict()
         meal_announcement['realizations'] = np.zeros(shape=(n, self.model.tsteps))
 
-        vo2 = dict()
-        vo2['realizations'] = np.zeros(shape=(n, self.model.tsteps))
+        hr = dict()
+        hr['realizations'] = np.zeros(shape=(n, self.model.tsteps))
 
         new_sensors = True if self.sensors is None else False
         if new_sensors:
@@ -245,11 +245,11 @@ class Replayer:
                 sensors.cgm.connect_new_cgm()
                 self.sensors.append(sensors)
 
-            # TODO: add vo2
+
             (glucose['realizations'][r], x_end['realizations'][r], cgm['realizations'][r],
              insulin_bolus['realizations'][r], correction_bolus['realizations'][r],
              insulin_basal['realizations'][r], cho['realizations'][r], hypotreatments['realizations'][r],
-             meal_announcement['realizations'][r], x) = self.model.simulate(rbg_data=self.rbg_data,
+             meal_announcement['realizations'][r], hr['realizations'][r], x) = self.model.simulate(rbg_data=self.rbg_data,
                                                                             modality='replay',
                                                                             environment=self.environment,
                                                                             dss=self.dss,
@@ -283,7 +283,7 @@ class Replayer:
         results['cho'] = cho
         results['hypotreatments'] = hypotreatments
         results['meal_announcement'] = meal_announcement
-        results['vo2'] = vo2
+        results['hr'] = hr
         results['sensors'] = copy.copy(self.sensors)
         results['rbg_data'] = copy.copy(self.rbg_data)
         results['model'] = copy.copy(self.model)

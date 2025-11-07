@@ -122,7 +122,8 @@ class InputValidatorReplay:
                  snack_absorption: float,
                  snack_absorption_delay: int,
                  hypotreatment_absorption: float,
-                 custom_ra: CustomRaBase
+                 custom_ra: CustomRaBase,
+                 hr: pd.DataFrame = None
                  ):
         self.data = data
         self.bw = bw
@@ -155,6 +156,7 @@ class InputValidatorReplay:
         self.snack_absorption_delay = snack_absorption_delay
         self.hypotreatment_absorption = hypotreatment_absorption
         self.custom_ra = custom_ra
+        self.hr = hr
 
     def validate(self):
         """
@@ -164,7 +166,7 @@ class InputValidatorReplay:
         # Validate the 'data' input
         DataValidator(modality='replay', data=self.data, blueprint=self.blueprint, exercise=self.exercise,
                       bolus_source=self.bolus_source, basal_source=self.basal_source,
-                      cho_source=self.cho_source).validate()
+                      cho_source=self.cho_source, hr = self.hr).validate()
 
         # Validate the 'bw' input
         BWValidator(bw=self.bw).validate()

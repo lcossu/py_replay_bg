@@ -1,6 +1,9 @@
 # This fixes circular imports for type checking
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
+from numpy.ma.core import zeros
+
 if TYPE_CHECKING:
     from py_replay_bg.replay.custom_ra import CustomRaBase
 
@@ -19,7 +22,8 @@ from py_replay_bg.model.model_parameters_t1d import ModelParametersT1DMultiMeal
 from py_replay_bg.model.logpriors_t1d import (log_prior_multi_meal, log_prior_multi_meal_exercise,
                                               log_prior_multi_meal_extended)
 
-from py_replay_bg.model.model_step_equations_t1d import twin_multi_meal, twin_multi_meal_extended
+from py_replay_bg.model.model_step_equations_t1d import twin_multi_meal, twin_multi_meal_extended, \
+    model_step_equations_exercise
 from py_replay_bg.model.model_step_equations_t1d import model_step_equations_multi_meal
 
 from py_replay_bg.data import ReplayBGData
@@ -308,6 +312,9 @@ class T1DModelMultiMeal:
         self.A = np.empty([self.nx - 3, self.nx - 3])
         self.B = np.empty([self.nx - 3, ])
 
+        if self.exercise:
+            self.x_ex = np.zeros([3, self.tsteps])
+
         # If previous_data_name is not None load previous_day_draws otherwise set it to None
         self.previous_data_name = previous_data_name
         self.previous_day_draws = None
@@ -430,6 +437,7 @@ class T1DModelMultiMeal:
         np.ndarray,
         np.ndarray,
         np.ndarray,
+        np.ndarray,
         np.ndarray
     ]:
         """
@@ -472,6 +480,8 @@ class T1DModelMultiMeal:
             An array containing the simulated hypotreatments events (g/min).
         meal_announcement: np.ndarray
             An array containing the simulated meal announcements events needed for bolus calculation (g/min).
+        hr: np.ndarray
+            An array containing the simulated heart rate (bpm). Returns an empty array if exercise is not used.
         x: np.ndarray
             A matrix containing all the simulated states.
 
@@ -827,6 +837,14 @@ class T1DModelMultiMeal:
                                                                mp.alpha,
                                                                self.previous_Ra[k - 1], current_forcing_Ra)
 
+                if self.exercise:
+                    self.x_ex[:, k] = model_step_equations_exercise(self.x[:, k - 1], self.x_ex[:, k - 1],
+                                                                    rbg_data.hr[k - 1], 60, 5, 5, 2, 0.974, 3.39e-4)
+                    # update glucose
+                    self.x[0, k] += self.x_ex[0, k]
+                    # update IG
+                    self.x[20, k] = (self.x[20, k - 1] + mp.alpha * self.x[0, k]) / (1 + mp.alpha)
+
                 self.G[k] = self.x[self.nx - 1, k]
 
                 # Get the cgm
@@ -844,7 +862,24 @@ class T1DModelMultiMeal:
             if forcing_Ra is not None:
                 meal = np.array([m + f for m, f in zip(meal, forcing_Ra.get_events())])
 
-            # TODO: add vo2
+            if self.exercise:
+                def f(Y, a, HRb, n):
+                    ratio = Y / (a * HRb)
+                    return (ratio ** n) / (1.0 + ratio ** n)
+
+                import plotly.express as px
+                fvalue = f(self.x_ex[1, :], 1, 60, 2)
+                df_ex = pd.DataFrame({
+                    'time': np.arange(0, self.tsteps),
+                    'G_ex': self.x_ex[0, :],
+                    'Y': self.x_ex[1, :],
+                    'Z': self.x_ex[2, :],
+                    'fval': fvalue,
+                })
+                fig = px.line(df_ex, x='time', y=['G_ex', 'Y', 'Z', 'fval'],
+                              title='Exercise-induced glucose deviation')
+                fig.show()
+
             return (self.x[0, :].copy(),
                     self.x[:, -1].copy(),
                     self.CGM.copy(),
@@ -854,6 +889,7 @@ class T1DModelMultiMeal:
                     meal * mp.to_g,
                     hypotreatments,
                     meal_announcement,
+                    rbg_data.hr, # returns heart rate as is
                     self.x.copy())
 
         else:

@@ -123,24 +123,33 @@ class Visualizer:
 
         if data is not None:
             ax[0].plot(data.t, data.glucose, marker='*', color='red', linewidth=2, label='CGM data [mg/dl]')
-        ax[0].plot(replay_results['rbg_data'].t_data, replay_results['cgm']['median'], marker='o', color='black', linewidth=2, label='CGM replay (Median) [mg/dl]')
-        ax[0].fill_between(replay_results['rbg_data'].t_data, replay_results['cgm']['ci25th'], replay_results['cgm']['ci75th'], color='black', alpha=0.2,
+        ax[0].plot(replay_results['rbg_data'].t_data, replay_results['cgm']['median'], marker='o', color='black',
+                   linewidth=2, label='CGM replay (Median) [mg/dl]')
+        ax[0].fill_between(replay_results['rbg_data'].t_data, replay_results['cgm']['ci25th'],
+                           replay_results['cgm']['ci75th'], color='black', alpha=0.2,
                            label='CGM replay (CI 25-75th) [mg/dl]')
 
-        ax[0].plot(replay_results['rbg_data'].t_data, replay_results['glucose']['median'][::replay_results['model'].yts], marker='o', color='blue', linewidth=2,
+        ax[0].plot(replay_results['rbg_data'].t_data,
+                   replay_results['glucose']['median'][::replay_results['model'].yts], marker='o', color='blue',
+                   linewidth=2,
                    label='Glucose replay (Median) [mg/dl]')
-        ax[0].fill_between(replay_results['rbg_data'].t_data, replay_results['glucose']['ci25th'][::replay_results['model'].yts], replay_results['glucose']['ci75th'][::replay_results['model'].yts], color='blue',
+        ax[0].fill_between(replay_results['rbg_data'].t_data,
+                           replay_results['glucose']['ci25th'][::replay_results['model'].yts],
+                           replay_results['glucose']['ci75th'][::replay_results['model'].yts], color='blue',
                            alpha=0.3, label='Glucose replay (CI 25-75th) [mg/dl]')
 
         ax[0].grid()
         ax[0].legend()
 
         # Subplot 2: Meals
-        t = np.arange(replay_results['rbg_data'].t_data[0]+ pd.Timedelta(minutes=0), replay_results['rbg_data'].t_data[-1] + pd.Timedelta(minutes=replay_results['model'].yts),
+        t = np.arange(replay_results['rbg_data'].t_data[0] + pd.Timedelta(minutes=0),
+                      replay_results['rbg_data'].t_data[-1] + pd.Timedelta(minutes=replay_results['model'].yts),
                       timedelta(minutes=1)).astype(datetime)
 
-        cho_events = np.sum(replay_results['cho']['realizations'], axis=0) / replay_results['cho']['realizations'].shape[0]
-        ht_events = np.sum(replay_results['hypotreatments']['realizations'], axis=0) / replay_results['hypotreatments']['realizations'].shape[0]
+        cho_events = np.sum(replay_results['cho']['realizations'], axis=0) / \
+                     replay_results['cho']['realizations'].shape[0]
+        ht_events = np.sum(replay_results['hypotreatments']['realizations'], axis=0) / \
+                    replay_results['hypotreatments']['realizations'].shape[0]
 
         markerline, stemlines, baseline = ax[1].stem(t, cho_events, basefmt='k:', label='CHO replay (Mean) [g/min]')
         plt.setp(stemlines, 'color', (70.0 / 255, 130.0 / 255, 180.0 / 255))
@@ -155,9 +164,12 @@ class Visualizer:
 
         # Subplot 3: Insulin
 
-        bolus_events = np.sum(replay_results['insulin_bolus']['realizations'], axis=0) / replay_results['insulin_bolus']['realizations'].shape[0]
-        cb_events = np.sum(replay_results['correction_bolus']['realizations'], axis=0) / replay_results['correction_bolus']['realizations'].shape[0]
-        basal_rate = np.sum(replay_results['insulin_basal']['realizations'], axis=0) / replay_results['insulin_basal']['realizations'].shape[0]
+        bolus_events = np.sum(replay_results['insulin_bolus']['realizations'], axis=0) / \
+                       replay_results['insulin_bolus']['realizations'].shape[0]
+        cb_events = np.sum(replay_results['correction_bolus']['realizations'], axis=0) / \
+                    replay_results['correction_bolus']['realizations'].shape[0]
+        basal_rate = np.sum(replay_results['insulin_basal']['realizations'], axis=0) / \
+                     replay_results['insulin_basal']['realizations'].shape[0]
 
         markerline, stemlines, baseline = ax[2].stem(t, bolus_events, basefmt='k:',
                                                      label='Bolus insulin replay (Mean) [U/min]')
@@ -177,19 +189,14 @@ class Visualizer:
         # Subplot 4: Exercise
 
         if replay_results['model'].exercise:
-
-            vo2_events = np.sum(replay_results['vo2']['realizations'], axis=0) / replay_results['vo2']['realizations'].shape[0]
-
-            markerline, stemlines, baseline = ax[3].stem(t, vo2_events, basefmt='k:', label='VO2 replay (Mean) [-]')
-            plt.setp(stemlines, 'color', (249.0 / 255, 115.0 / 255, 6.0 / 255))
-            plt.setp(markerline, 'color', (249.0 / 255, 115.0 / 255, 6.0 / 255))
-
+            hr_events = replay_results['hr']['realizations'].mean(axis=0)
+            ax[3].plot(t, hr_events, label='HR data [bpm]', color='red',
+                       linewidth=2)
             ax[3].grid()
             ax[3].legend()
 
         fig.suptitle(title, fontweight='bold')
         plt.show()
-
 
     @staticmethod
     def plot_replay_results_interval(
@@ -254,7 +261,6 @@ class Visualizer:
 
         # Pad each array to the maximum shape
         replay_results = dict()
-
 
         # Re-map glucose data
         fields = ['median', 'ci5th', 'ci25th', 'ci75th', 'ci95th']

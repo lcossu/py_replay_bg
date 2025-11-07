@@ -437,3 +437,32 @@ def model_step_equations_multi_meal_exercise(A, I, cho_b, cho_l, cho_d, cho_s, c
     xk[21] = (xkm1[21] + alpha * xk[0]) / (1 + alpha)
 
     return xk
+
+def model_step_equations_exercise(xkm1, x_ex_km1, hr, hrb, tau_hr, tau, n, alpha, beta):
+    """
+    Internal function that simulates a step of the exercise model using backward-euler method.
+    Model from Breton 2008 "Physical Activity—The Major Unaccounted Impediment to Closed Loop Control" JDST.
+    """
+
+    def f(Y, a, HRb, n):
+        ratio = Y / (a * HRb)
+        return (ratio ** n) / (1.0 + ratio ** n)
+    G = xkm1[0]
+    X = xkm1[1]
+    G_ex_prev, Y_prev, Z_prev = x_ex_km1
+    a = 1
+    fY = f(Y_prev, a, hrb, n)
+
+    # dY/dt = (HR - HRb)/tau_hr - Y/tau_hr
+    # effect on glucose expenditure
+    Y = (Y_prev + (hr - hrb) / tau_hr) / (1 + 1 / tau_hr)
+
+    # dZ/dt = f(Y) - (f(Y) + 1/tau)*Z
+    # effect on insulin sensitivity
+    Z = (Z_prev + fY) / (1 + fY + 1 / tau)
+
+    # G_ex = -(alpha*Z*X + beta*Y)*G, which will further modify glucose step change
+    decay = alpha * Z * X + beta * Y
+    dG_ex = -decay * G
+
+    return np.array([dG_ex, Y, Z])
