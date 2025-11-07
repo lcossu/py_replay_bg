@@ -1,3 +1,9 @@
+# This fixes circular imports for type checking
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from py_replay_bg.replay.custom_ra import CustomRaBase
+
 import numpy as np
 
 import os
@@ -13,7 +19,7 @@ from py_replay_bg.model.model_parameters_t1d import ModelParametersT1DSingleMeal
 
 from py_replay_bg.model.logpriors_t1d import log_prior_single_meal, log_prior_single_meal_exercise
 
-from py_replay_bg.model.model_step_equations_t1d import twin_single_meal
+from py_replay_bg.model.model_step_equations_t1d import twin_single_meal, model_step_equations_exercise
 from py_replay_bg.model.model_step_equations_t1d import model_step_equations_single_meal
 
 from py_replay_bg.data import ReplayBGData
@@ -130,6 +136,9 @@ class T1DModelSingleMeal:
         # Model dimensionality
         self.nx = 9
 
+        # For single-meal model extended is always False
+        self.extended = False
+
         # Model parameters
         self.model_parameters = ModelParametersT1DSingleMeal(data, bw, u2ss)
 
@@ -170,6 +179,9 @@ class T1DModelSingleMeal:
         self.CGM = np.empty([self.tysteps, ])
         self.A = np.empty([self.nx - 3, self.nx - 3])
         self.B = np.empty([self.nx - 3, ])
+
+        if self.exercise:
+            self.x_ex = np.zeros([3, self.tsteps])
 
         # Remember twinning method
         self.twinning_method = twinning_method
@@ -223,8 +235,10 @@ class T1DModelSingleMeal:
                  modality: str,
                  environment: Environment | None,
                  dss: DSS | None,
-                 sensors: Sensors = None
+                 sensors: Sensors = None,
+                 forcing_Ra: CustomRaBase | None = None
                  ) -> np.ndarray | tuple[
+        np.ndarray,
         np.ndarray,
         np.ndarray,
         np.ndarray,
@@ -252,6 +266,8 @@ class T1DModelSingleMeal:
             An object that represents the hyperparameters of the dss. Unused during twinning.
         sensors: Sensors
             An object that represents the sensors used during simulation.
+        forcing_Ra: ForcingRaBase
+            An object that represents the forcing Ra input to be used during simulation. Default is None.
 
         Returns
         -------
@@ -274,8 +290,11 @@ class T1DModelSingleMeal:
             An array containing the simulated hypotreatments events (g/min).
         meal_announcement: np.ndarray
             An array containing the simulated meal announcements events needed for bolus calculation (g/min).
+        hr: np.ndarray
+            An array containing the simulated heart rate (bpm). Returns an empty array if exercise is disabled.
         x: np.ndarray
             A matrix containing all the simulated states.
+
 
         Raises
         ------
@@ -486,6 +505,11 @@ class T1DModelSingleMeal:
                     # Update the correction_bolus event vectors
                     correction_bolus[k - 1] = correction_bolus[k - 1] + cb
 
+                if forcing_Ra is not None:
+                    current_forcing_Ra = forcing_Ra.simulate_forcing_ra(rbg_data.t_hour[0:k], k)
+                else:
+                    current_forcing_Ra = 0
+
                 # Integration step
                 self.x[:, k] = model_step_equations_single_meal(self.A,
                                                                 bolus_delayed[k - 1] + basal_delayed[k - 1],
@@ -507,7 +531,15 @@ class T1DModelSingleMeal:
                                                                 mp.f,
                                                                 mp.kabs,
                                                                 mp.alpha,
-                                                                self.previous_Ra[k - 1])
+                                                                self.previous_Ra[k - 1], current_forcing_Ra)
+
+                if self.exercise:
+                    self.x_ex[:, k] = model_step_equations_exercise(self.x[:, k - 1], self.x_ex[:, k - 1],
+                                                                    rbg_data.hr[k - 1], 60, 5, 5, 2, 0.974, 3.39e-4)
+                    # update glucose
+                    self.x[0, k] += self.x_ex[0, k]
+                    # update IG
+                    self.x[8, k] = (self.x[8, k - 1] + mp.alpha * self.x[0, k]) / (1 + mp.alpha)
 
                 self.G[k] = self.x[self.nx - 1, k]
 
@@ -522,6 +554,10 @@ class T1DModelSingleMeal:
                                                                                         24 * 60),
                                                                             past_ig=self.x[self.nx - 1, :k], )
 
+            # Add the list of events that generated the forcing Ra to the meal vector for logging purposes
+            if forcing_Ra is not None:
+                meal = np.array([m + f for m, f in zip(meal, forcing_Ra.get_events())])
+
             # TODO: add vo2
             return (self.x[0, :].copy(),
                     self.x[:, -1].copy(),
@@ -532,6 +568,7 @@ class T1DModelSingleMeal:
                     meal * mp.to_g,
                     hypotreatments,
                     meal_announcement,
+                    rbg_data.hr,
                     self.x.copy())
 
         else:

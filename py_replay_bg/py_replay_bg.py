@@ -304,6 +304,7 @@ class ReplayBG:
                snack_absorption_delay: int = None,
                hypotreatment_absorption: float = None,
                custom_ra: CustomRaBase = None,
+               hr: pd.DataFrame = None,
                ) -> Dict:
         """
         Runs ReplayBG according to the chosen modality.
@@ -463,6 +464,7 @@ class ReplayBG:
             snack_absorption_delay=snack_absorption_delay,
             hypotreatment_absorption=hypotreatment_absorption,
             custom_ra=custom_ra,
+            hr=hr,
         ).validate()
 
         if self.environment.verbose:
@@ -514,7 +516,7 @@ class ReplayBG:
         # Unpack data to optimize performance
         rbg_data = ReplayBGData(data=data, model=model,
                                 environment=self.environment,
-                                bolus_source=bolus_source, basal_source=basal_source, cho_source=cho_source)
+                                bolus_source=bolus_source, basal_source=basal_source, cho_source=cho_source, hr=hr)
 
         # Run replay
         if self.environment.verbose:

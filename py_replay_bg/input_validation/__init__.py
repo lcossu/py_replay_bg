@@ -143,7 +143,7 @@ class DataValidator:
     """
 
     def __init__(self, modality, data, blueprint, exercise,
-                 bolus_source, basal_source, cho_source):
+                 bolus_source, basal_source, cho_source, hr):
         self.modality = modality
         self.data = data
         self.blueprint = blueprint
@@ -152,6 +152,7 @@ class DataValidator:
         self.bolus_source = bolus_source
         self.basal_source = basal_source
         self.cho_source = cho_source
+        self.hr = hr
 
     def validate(self):
 
@@ -209,6 +210,19 @@ class DataValidator:
                 raise Exception("'data' must contain the 'basal' column.'")
             if self.data.basal.isnull().values.any():
                 raise Exception("'data.basal' must not contain nan values.'")
+
+            if self.exercise:
+                if self.hr is None:
+                    raise Exception("'hr' input must be provided when 'exercise' is True.'")
+                if not isinstance(self.hr, pd.DataFrame):
+                    raise Exception("'hr' input must be a pandas.DataFrame.'")
+                if not 't' in self.hr:
+                    raise Exception("'hr' must contain the 't' column.'")
+                if not 'hr' in self.hr:
+                    raise Exception("'hr' must contain the 'hr' column.'")
+                if not (self.hr.t.iloc[1]-self.hr.t.iloc[0] == pd.Timedelta(minutes=1) or
+                        self.hr.t.iloc[1]-self.hr.t.iloc[0] == pd.Timedelta(minutes=5)):
+                    raise Exception("'hr.t' must have a frequency of either 1 or 5 minutes.'")
 
 
 class EnableCorrectionBolusesValidator:
